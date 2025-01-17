@@ -2,7 +2,7 @@ import express from "express";
 import fs from "fs";
 const app = express();
 import { FuncCMV, FuncAES } from "./cmvaes.js";
-const port = 3000;
+const port = process.env.PORT || 3000; //若部署到網上，就使用其網路服務的 port；否則就用 port=3000
 
 app.use(express.urlencoded({ extended: true })); //解析全方位金流的 application/x-www-form-urlencoded 請求
 app.use(express.json()); //解析站內付 2.0 的 JSON 請求
@@ -103,5 +103,5 @@ app.post(["/returnurl",  "/serverreplyurl"], (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Server running on port ${port}`);
 });
