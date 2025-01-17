@@ -1,3 +1,5 @@
+//npm i mongodb@latest
+
 import express from "express";
 import fs from "fs";
 const app = express();
@@ -8,6 +10,7 @@ app.use(express.urlencoded({ extended: true })); //解析全方位金流的 appl
 app.use(express.json()); //解析站內付 2.0 的 JSON 請求
 
 function FuncReturnURL(req, res) {
+  //使用 fs 模組於本地端產生 log 檔
   // 取得台灣時間
   const today = new Date();
   const localTime = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
@@ -96,7 +99,7 @@ function FuncReturnURL(req, res) {
 }
 
 //金流與物流通知路由整合
-//returnurl：金流付款椰果通知
+//returnurl：金流付款結果通知
 
 app.post(["/returnurl",  "/serverreplyurl"], (req, res) => {
   FuncReturnURL(req, res);
