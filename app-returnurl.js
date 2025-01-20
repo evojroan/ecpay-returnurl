@@ -2,12 +2,49 @@
 
 import express from "express";
 import fs from "fs";
+import { MongoClient, ServerApiVersion } from 'mongodb';
 const app = express();
 import { FuncCMV, FuncAES } from "./cmvaes.js";
 const port = process.env.PORT || 3000; //若部署到網上，就使用其網路服務的 port；否則就用 port=3000
 
 app.use(express.urlencoded({ extended: true })); //解析全方位金流的 application/x-www-form-urlencoded 請求
 app.use(express.json()); //解析站內付 2.0 的 JSON 請求
+
+const uri = "mongodb+srv://roan6903:eD494702446S@returnurl.q6bf7.mongodb.net/?retryWrites=true&w=majority&appName=returnurl";
+
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  }
+});
+
+async function connectMongoDB() {
+  try {
+    console.log("正在嘗試連接到 MongoDB...");
+    await client.connect();
+    await client.db("admin").command({ ping: 1 });
+    console.log("成功連接到 MongoDB Atlas！");
+    return true;
+  } catch (error) {
+    console.error("MongoDB 連接錯誤:", error);
+    return false;
+  }
+}
+
+app.get("/test-mongodb", async (req, res) => {
+  try {
+    const isConnected = await connectMongoDB();
+    if (isConnected) {
+      res.json({ status: "success", message: "MongoDB 連接成功！" });
+    } else {
+      res.status(500).json({ status: "error", message: "MongoDB 連接失敗" });
+    }
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
 
 function FuncReturnURL(req, res) {
   //使用 fs 模組於本地端產生 log 檔
@@ -105,34 +142,15 @@ app.post(["/returnurl",  "/serverreplyurl"], (req, res) => {
   FuncReturnURL(req, res);
 });
 
-app.listen(port, () => {
+// 在服務啟動時進行連接測試
+app.listen(port, async () => {
   console.log(`Server running on port ${port}`);
+  await connectMongoDB();
 });
 
-
-
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = "mongodb+srv://roan6903:eD494702446S@returnurl.q6bf7.mongodb.net/?retryWrites=true&w=majority&appName=returnurl";
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
+// 程式結束時關閉連接
+process.on('SIGINT', async () => {
+  await client.close();
+  console.log('MongoDB 連接已關閉');
+  process.exit(0);
 });
-
-async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
-  }
-}
-run().catch(console.dir);
