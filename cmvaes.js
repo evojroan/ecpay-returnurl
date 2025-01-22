@@ -1,52 +1,58 @@
-import crypto from "crypto"; 
+import crypto from "crypto";
 
-//AllHashes1
+//測試帳號金鑰：AllHashes1
+const AllHashes = {
+  3002607: {
+    HashKey: process.env.HashKey_3002607,
+    HashIV: process.env.HashIV_3002607,
+  }, //金流 - 特店測試帳號
+  3002599: {
+    HashKey: process.env.HashKey_3002599,
+    HashIV: process.env.HashIV_3002599,
+  }, //金流 - 平台商測試帳號
+  3003008: {
+    HashKey: process.env.HashKey_3003008,
+    HashIV: process.env.HashIV_3003008,
+  }, //金流 - 平台商測試帳號
+  2000132: {
+    HashKey: process.env.HashKey_2000132,
+    HashIV: process.env.HashIV_2000132,
+  }, //物流 - B2C及宅配測試帳號
+  2000933: {
+    HashKey: process.env.HashKey_2000933,
+    HashIV: process.env.HashIV_2000933,
+  }, //物流 - C2C測試帳號
+};
+
+//測試帳號金鑰：AllHashes2
 // const AllHashes = {
-//   3002607: { 
-//     HashKey: "pwFHCqoQZGmho4w6", 
-//     HashIV: "EkRm7iFT261dpevs" 
+//   3002607: {
+//     HashKey: "pwFHCqoQZGmho4w6",
+//     HashIV: "EkRm7iFT261dpevs"
 //   }, //金流 - 特店測試帳號
-//   3002599: { 
-//     HashKey: "spPjZn66i0OhqJsQ", 
+//   3002599: {
+//     HashKey: "spPjZn66i0OhqJsQ",
 //     HashIV: "hT5OJckN45isQTTs"
 //   }, //金流 - 平台商測試帳號
-//   3003008: { 
-//     HashKey: "FCnGLNS7P3xQ2q3E", 
-//     HashIV: "awL5GRWRhyaybq13" 
+//   3003008: {
+//     HashKey: "FCnGLNS7P3xQ2q3E",
+//     HashIV: "awL5GRWRhyaybq13"
 //   }, //金流 - 平台商測試帳號
-//   2000132: { 
-//     HashKey: "5294y06JbISpM5x9", 
-//     HashIV: "v77hoKGq4kWxNNIS" 
+//   2000132: {
+//     HashKey: "5294y06JbISpM5x9",
+//     HashIV: "v77hoKGq4kWxNNIS"
 //   }, //物流 - B2C及宅配測試帳號
-//   2000933: { 
-//     HashKey: "XBERn1YOvpM9nfZc", 
-//     HashIV: "h1ONHk4P4yqbl5LK" 
+//   2000933: {
+//     HashKey: "XBERn1YOvpM9nfZc",
+//     HashIV: "h1ONHk4P4yqbl5LK"
 //   }, //物流 - C2C測試帳號
 // };
 
-//AllHashes2
-const AllHashes = {
-  3002607: { 
-    HashKey: process.env.HashKey_3002607, 
-    HashIV: process.env.HashIV_3002607 
-  }, //金流 - 特店測試帳號
-  3002599: { 
-    HashKey: process.env.HashKey_3002599, 
-    HashIV: process.env.HashIV_3002599 
-  }, //金流 - 平台商測試帳號
-  3003008: { 
-    HashKey: process.env.HashKey_3003008, 
-    HashIV: process.env.HashIV_3003008 
-  }, //金流 - 平台商測試帳號
-  2000132: { 
-    HashKey: process.env.HashKey_2000132, 
-    HashIV: process.env.HashIV_2000132 
-  }, //物流 - B2C及宅配測試帳號
-  2000933: { 
-    HashKey: process.env.HashKey_2000933, 
-    HashIV: process.env.HashIV_2000933 
-  }, //物流 - C2C測試帳號
-};
+//正式帳號金鑰(請自行改寫)：AllHashes3
+// const AllHashes = {
+//   "0000000": { HashKey: process.env.HashKey_0000000, HashIV: process.env.HashIV_0000000 },
+//   "1111111": { HashKey: process.env.HashKey_1111111, HashIV: process.env.HashIV_1111111 },
+// };
 
 //函式：計算檢查碼
 export function FuncCMV(InputParams) {
@@ -114,7 +120,6 @@ export function FuncAES(InputParams) {
     } else if (InputParams.ResultData) {
       parsedData = JSON.parse(InputParams.ResultData); //全方位物流改傳送 ResultData，因此需要先判斷
       MerchantID = parsedData.MerchantID;
-    
     } else {
       throw new Error("缺少 MerchantID 參數");
     }
@@ -135,7 +140,6 @@ export function FuncAES(InputParams) {
       encryptedData = InputParams.Data;
     } else if (parsedData) {
       encryptedData = parsedData.Data;
-  
     } else {
       throw new Error("需要提供 Data 或 ResultData 參數");
     }
