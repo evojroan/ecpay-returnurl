@@ -1,20 +1,56 @@
-//npm i mongodb@latest dotenv
+import {MongoClient, ServerApiVersion} from "mongodb"; //npm i mongodb@latest dotenv
 import "dotenv/config";
 import express from "express";
 import fs from "fs";
 const app = express();
-import { FuncCMV, FuncAES } from "./cmvaes.js";
-const port = process.env.PORT || 3000; //若部署到網上，就使用其網路服務的 port；否則就用 port=3000
+import {FuncCMV, FuncAES} from "./cmvaes.js";
+const port = process.env.PORT || 3000; //若部署到網上，就使用其網路伺服的 port；否則就用 port=3000
 
-app.use(express.urlencoded({ extended: true })); //解析全方位金流的 application/x-www-form-urlencoded 請求
+app.use(express.urlencoded({extended: true})); //解析全方位金流的 application/x-www-form-urlencoded 請求
 app.use(express.json()); //解析站內付 2.0 的 JSON 請求
+
+// MongoDB 連接設定
+const uri = `mongodb+srv://${process.env.DB_ACCOUNT}:${process.env.DB_PASSWORD}@cluster0.q6bf7.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true
+  }
+});
+
+// 連接到 MongoDB
+async function connectToMongo() {
+  try {
+    await client.connect();
+    await client.db("admin").command({ping: 1});
+    console.log("成功連接到 MongoDB Atlas!");
+  } catch (error) {
+    console.error("MongoDB 連接錯誤:", error);
+    process.exit(1);
+  }
+}
+
+// 新增一個用於記錄日誌的函數
+async function logToMongoDB(logData) {
+  try {
+    const database = client.db("logs");
+    const collection = database.collection("ReturnURL_logs");
+    await collection.insertOne({
+      timestamp: new Date(),
+      ...logData
+    });
+  } catch (error) {
+    console.error("MongoDB 記錄錯誤:", error);
+  }
+}
 
 function FuncReturnURL(req, res) {
   //使用 fs 模組於本地端產生 log 檔
   // 取得台灣時間
   const today = new Date();
   const localTime = new Date(
-    today.toLocaleString("en-US", { timeZone: "Asia/Taipei" })
+    today.toLocaleString("en-US", {timeZone: "Asia/Taipei"})
   );
   const dateString = localTime.toISOString().split("T")[0]; // 格式: YYYY-MM-DD
   const timestamp = localTime.toLocaleString("zh-TW", {
@@ -25,7 +61,7 @@ function FuncReturnURL(req, res) {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false,
+    hour12: false
   });
   const logFileName = `logs_${dateString}.txt`;
   const logend = "=== Log 結束 ===";
@@ -53,13 +89,22 @@ function FuncReturnURL(req, res) {
 
   //CheckMacValue
   if (req.body.CheckMacValue) {
-    const { CheckMacValue, ...InputParams } = req.body;
+    const {CheckMacValue, ...InputParams} = req.body;
     const calculatedCMV = FuncCMV(InputParams);
     const CMVCheckResult = CheckMacValue === calculatedCMV;
 
     const logMessage = `檢查碼比對是否正確：${CMVCheckResult}\n${logend}`;
     console.log(logMessage);
     fs.appendFileSync(logFileName, `${logMessage}\n`, "utf8");
+
+    // 新增 MongoDB 記錄
+    logToMongoDB({
+      type: "CheckMacValue",
+      ip,
+      postData: req.body,
+      checkResult: CMVCheckResult,
+      timestamp: localTime
+    });
 
     if (CMVCheckResult) {
       res.send("1|OK");
@@ -74,17 +119,49 @@ function FuncReturnURL(req, res) {
       const logMessage = `AES 解密內容：\n${decryptedData}\n${logend}`;
       console.log(logMessage);
       fs.appendFileSync(logFileName, `${logMessage}\n`, "utf8");
+
+      // 新增 MongoDB 記錄
+      logToMongoDB({
+        type: "AES",
+        ip,
+        postData: req.body,
+        decryptedData,
+        status: "success",
+        timestamp: localTime
+      });
+
       res.send("1|OK");
     } catch (error) {
       const logMessage = `AES 解密失敗：${error.message}\n${logend}`;
       console.log(logMessage);
       fs.appendFileSync(logFileName, `${logMessage}\n`, "utf8");
+
+      // 新增 MongoDB 記錄
+      logToMongoDB({
+        type: "AES",
+        ip,
+        postData: req.body,
+        error: error.message,
+        status: "error",
+        timestamp: localTime
+      });
+
       res.send("1|OK");
     }
   } else {
     const logMessage = `0|接收之資料有誤，無檢查碼或無法解密\n${logend}`;
     console.log(logMessage);
     fs.appendFileSync(logFileName, `Console Log: ${logMessage}\n`, "utf8");
+
+    // 新增 MongoDB 記錄
+    logToMongoDB({
+      type: "Error",
+      ip,
+      postData: req.body,
+      message: "接收之資料有誤，無檢查碼或無法解密",
+      timestamp: localTime
+    });
+
     res.send(logMessage);
   }
 }
@@ -96,6 +173,14 @@ app.post(["/returnurl", "/serverreplyurl"], (req, res) => {
   FuncReturnURL(req, res);
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// 在啟動伺服器之前先連接到 MongoDB
+app.listen(port, async () => {
+  await connectToMongo();
+  console.log(`伺服器運行於 port ${port}`);
+});
+
+// 當應用程式關閉時，確保關閉 MongoDB 連接
+process.on("SIGINT", async () => {
+  await client.close();
+  process.exit(0);
 });
